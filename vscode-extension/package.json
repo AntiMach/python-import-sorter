@@ -1,6 +1,6 @@
 {
     "name": "python-import-sorter",
-    "publisher": "antimach",
+    "publisher": "AntiMach",
     "displayName": "Python Import Sorter",
     "description": "Automatically sort python imports",
     "version": "0.0.1",
