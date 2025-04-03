@@ -21,10 +21,10 @@
         "configuration": {
             "title": "Common",
             "properties": {
-                "python-import-sorter.formatter": {
+                "python-import-sorter.format": {
                     "description": "Specify the formatter command to run in python.",
                     "type": "string",
-                    "default": "ruff format"
+                    "default": null
                 },
                 "python-import-sorter.groups": {
                     "description": "Package names to group by.",
@@ -37,6 +37,9 @@
             }
         }
     },
+    "extensionDependencies": [
+        "ms-python.vscode-python-envs"
+    ],
     "scripts": {
         "vscode:prepublish": "npm run compile",
         "compile": "python bundle.py && tsc -p ./",

@@ -8,6 +8,6 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent.resolve() / "libs"))
 
-import import_sorter
+from import_sorter.main import main
 
-import_sorter.main()
+main()

@@ -1,55 +1,43 @@
 import * as vscode from "vscode";
-import * as path from "path";
-import { exec } from "child_process";
+import * as config from "./common/config";
+import * as python from "./common/pythonEnvsApi";
 
-const EXTENSION_NAME = "python-import-sorter";
+async function runScript(content: string): Promise<string> {
+    const api = await python.getEnvExtApi();
+    const env = await api.getEnvironment(undefined);
 
-const EXTENSION_ROOT_DIR = path.dirname(__dirname);
-const SCRIPT_PATH = path.join(EXTENSION_ROOT_DIR, "bundled", "tool", "script.py");
-
-async function getPythonPath(): Promise<string> {
-    const extension = vscode.extensions.getExtension("ms-python.python");
-    if (!extension) {
-        return "python";
+    if (!env) {
+        throw new Error("No active environment found");
     }
 
-    if (!extension.isActive) {
-        await extension.activate();
-    }
+    let args = [config.SCRIPT_PATH, "-"];
+    const { format, groups } = config.settings();
 
-    const pythonPath = extension.exports.settings.getExecutionDetails().execCommand?.[0];
-    return pythonPath || "python";
-}
-
-function getFormatter(): string | undefined {
-    return vscode.workspace.getConfiguration(EXTENSION_NAME).get("formatter");
-}
-
-function getGroups(): string[] {
-    return vscode.workspace.getConfiguration(EXTENSION_NAME).get("groups") ?? [];
-}
-
-async function getFullCommand(): Promise<string> {
-    const pythonPath = await getPythonPath();
-    let fullCommand = `"${pythonPath}" "${SCRIPT_PATH}" -`;
-    const formatter = getFormatter();
-    const groups = getGroups();
-
-    if (formatter !== undefined) {
-        fullCommand += ` -f "${formatter}"`;
+    if (format) {
+        args.push("-f", format);
     }
 
     if (groups.length > 0) {
-        fullCommand += ` -g ${groups.join(" ")}`;
+        args.push("-g", ...groups);
     }
 
-    return fullCommand;
+    const proc = await api.runInBackground(env, { args });
+
+    proc.stdin.write(content);
+    proc.stdin.end();
+
+    return new Promise((resolve, reject) => {
+        proc.onExit((code) => {
+            if (code === 0) {
+                return resolve(proc.stdout.read().toString());
+            }
+            reject(new Error(proc.stderr.read().toString()));
+        });
+    });
 }
 
 export function activate(context: vscode.ExtensionContext) {
-    console.log(`"${EXTENSION_NAME}" is now active`);
-
-    const disposable = vscode.languages.registerDocumentFormattingEditProvider(
+    const formatter = vscode.languages.registerDocumentFormattingEditProvider(
         { scheme: "file", language: "python" },
         {
             async provideDocumentFormattingEdits(document: vscode.TextDocument): Promise<vscode.TextEdit[]> {
@@ -59,40 +47,19 @@ export function activate(context: vscode.ExtensionContext) {
                 );
 
                 try {
-                    const command = await getFullCommand();
-
-                    return new Promise<vscode.TextEdit[]>((resolve, reject) => {
-                        const proc = exec(command, {}, (error, stdout, stderr) => {
-                            if (error) {
-                                vscode.window.showErrorMessage(`Error formatting: ${stderr}`);
-                                reject(error);
-                                return;
-                            }
-
-                            resolve([vscode.TextEdit.replace(fullRange, stdout)]);
-                        });
-
-                        if (proc.stdin) {
-                            proc.stdin.write(document.getText(fullRange));
-                            proc.stdin.end(); // Important: close the stdin stream
-                        } else {
-                            reject(new Error("Failed to access stdin of the process"));
-                        }
-                    });
+                    const result = await runScript(document.getText(fullRange));
+                    return [vscode.TextEdit.replace(fullRange, result)];
                 } catch (error) {
+                    vscode.window.showErrorMessage("Failed to format file");
                     return [];
                 }
             },
         }
     );
 
-    context.subscriptions.push(disposable);
+    const command = vscode.commands.registerCommand("python-import-sorter.format", () => { });
 
-    const disposable2 = vscode.commands.registerCommand("python-import-sorter.format", () => {
-        vscode.window.showInformationMessage("Hello World!");
-    });
-
-    context.subscriptions.push(disposable2);
+    context.subscriptions.push(formatter, command);
 }
 
-export function deactivate() {}
+export function deactivate() { }

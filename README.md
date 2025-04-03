@@ -2,7 +2,9 @@
 
 ## Overview
 
-`import_sorter.py` is a Python script designed to automatically sort and format import statements in Python files. It groups imports based on predefined or custom categories and ensures a clean, structured order for better code readability and maintainability.
+`import_sorter` is designed to automatically sort and format import statements of Python code.
+It groups imports based on predefined or custom categories and ensures a clean,
+structured order for better code readability and maintainability.
 
 ## Features
 
@@ -13,7 +15,7 @@
 
 ## Installation
 
-Ensure you have Python installed (version 3.7 or higher recommended).
+Ensure you have Python installed (version 3.11 or higher recommended).
 
 You may also want to install `ruff` for formatting:
 
@@ -26,18 +28,18 @@ pip install ruff
 Run the script with:
 
 ```sh
-python import_sorter.py <file>
+python -m import_sorter.main <file>
 ```
 
 ### Options
 
-- `-f, --formatter` : Specify a custom formatter (default is `ruff format`).
-- `-g, --groups` : Define custom import groups.
+- `-g, --groups` : Define custom import groups (optional, multiple).
+- `-f, --format` : Specify a formatter to use after sorting (optional).
 
 Example:
 
 ```sh
-python import_sorter.py my_script.py -f black -g numpy pandas
+python -m import_sorter.main my_script.py -g numpy pandas -f "ruff format -"
 ```
 
 ## How It Works
