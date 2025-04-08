@@ -34,6 +34,6 @@ Unknown.
 
 - Initial release
 - Automatic import sorting for Python files
-- Custom formatter command configuration through `python-import-sorter.format` (not set by default, eg.: `ruff format -`)
+- Custom formatter command configuration through `python-import-sorter.format` (not set by default, eg.: `python -m ruff format -`)
 - Configurable import grouping through `python-import-sorter.groups` setting
 - Configurable arguments through the `python-import-sorter.config` setting

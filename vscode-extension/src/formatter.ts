@@ -49,8 +49,10 @@ export class Formatter {
     }
 
     async runScript(content: string): Promise<string> {
+        const projectRoot = vsapi.getProjectRoot();
+
         const api = await python.getEnvExtApi();
-        const env = await api.getEnvironment(undefined);
+        const env = await api.getEnvironment(projectRoot);
 
         if (!env) {
             throw new Error("No active environment found");
@@ -71,7 +73,7 @@ export class Formatter {
             args.push("-c", configPath);
         }
 
-        const proc = await api.runInBackground(env, { args, cwd: vsapi.getProjectRoot() });
+        const proc = await api.runInBackground(env, { args, cwd: projectRoot.fsPath });
 
         proc.stdin.write(content);
         proc.stdin.end();
