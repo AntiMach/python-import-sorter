@@ -22,23 +22,29 @@ class ImportSorter:
 
         for stmt in ast.parse(self.source).body:
             if self._read_stmt(stmt):
-                last_line = stmt.lineno - 1
                 break
+            last_line = stmt.end_lineno or stmt.lineno
 
         new_source = ""
 
-        for imports in self.groups.values():
-            for import_stmt in self._sort_imports(imports.values()):
+        try:
+            *first_groups, last_group = [group for group in self.groups.values() if group]
+        except ValueError:
+            # No imports
+            return self.source
+
+        for group in first_groups:
+            for import_stmt in self._sort_imports(group.values()):
                 new_source += ast.unparse(import_stmt)
                 new_source += "\n"
-            if imports:
-                new_source += "\n"
-
-        new_source += "\n"
-
-        for line in self.source.splitlines()[last_line:]:
-            new_source += line
             new_source += "\n"
+
+        for import_stmt in self._sort_imports(last_group.values()):
+            new_source += ast.unparse(import_stmt)
+            new_source += "\n"
+
+        for line in self.source.splitlines(keepends=True)[last_line:]:
+            new_source += line
 
         return new_source
 
@@ -46,6 +52,8 @@ class ImportSorter:
         if isinstance(stmt, ast.Import):
             for name in stmt.names:
                 self._add_stmt(ast.Import([name]), "", f"i+{name.name}")
+
+            return False
 
         elif isinstance(stmt, ast.ImportFrom):
             module = stmt.module or ""
@@ -56,8 +64,9 @@ class ImportSorter:
                 f"f+{module}",
             )
 
-        else:
-            return True
+            return False
+
+        return True
 
     def _add_stmt(self, stmt: ImportLike, group: str, module: str):
         import_group = self.groups.get(group, self.groups[""])

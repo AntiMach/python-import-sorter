@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "import-sorter"
-version = "0.0.1"
+version = "1.0.0"
 authors = [{ name = "AntiMach", email = "themachinumps@gmail.com" }]
 description = "A CLI for sorting imports at the top of a file"
 readme = "README.md"
@@ -16,7 +16,13 @@ classifiers = [
 ]
 
 [project.scripts]
-import-sorter = "import_sorter.main:main"
+import-sorter = "import_sorter.__main__:main"
 
 [project.urls]
 "Homepage" = "https://github.com/AntiMach/python-import-sorter"
+
+[tool.import-sorter]
+groups = ["import_sorter"]
+
+[tool.ruff]
+line-length = 120

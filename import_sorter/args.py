@@ -1,8 +1,9 @@
 import sys
+import tomllib
+from pathlib import Path
 from dataclasses import dataclass
 from argparse import ArgumentParser
-import tomllib
-from typing import Literal, Self, Sequence, TextIO
+from typing import Self, TextIO, Literal, Sequence
 
 
 @dataclass
@@ -13,11 +14,11 @@ class Args:
     config: str | None
 
     def __post_init__(self):
-        self._load_toml("pyproject.toml", ["tool", "import-sorter"])
-        self._load_toml("import-sorter.toml", [])
-
         if self.config:
             self._load_toml(self.config, [])
+
+        self._load_toml("import-sorter.toml", [])
+        self._load_toml("pyproject.toml", ["tool", "import-sorter"])
 
     def _load_toml(self, file: str, path: list[str]):
         try:
@@ -31,12 +32,22 @@ class Args:
         for key in path:
             config = config.get(key, {})
 
-        self.groups = config.get("groups", self.groups)
-        self.format = config.get("format", self.format)
+        if not self.groups:
+            self.groups = config.get("groups", [])
+
+        if not self.format:
+            self.format = config.get("format")
 
     @classmethod
     def parse(cls, args: Sequence[str] | None = None) -> Self:
-        parser = ArgumentParser()
+        exec_file = Path(sys.argv[0])
+
+        if exec_file.stem == "__main__":
+            prog = f"python -m {exec_file.parent.stem}"
+        else:
+            prog = exec_file.name
+
+        parser = ArgumentParser(prog)
 
         parser.add_argument("file")
         parser.add_argument("-g", "--groups", action="extend", nargs="+", default=[])

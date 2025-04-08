@@ -1,57 +1,39 @@
-# Python Import Sorter
+# Python Import sorter
 
-Automatically sort Python imports in your VSCode environment.
+A python utilitly for sorting python imports the right way.
+
+CLI Written in Python, extension written in TypeScript.
+
+*[Repository](https://github.com/AntiMach/python-import-sorter)*
 
 ## Features
 
--   Automatically sorts Python imports on file save
--   Uses customizable formatter commands (defaults to `ruff format`)
--   Configurable import grouping
--   Activates only for Python files
+Format the whole document or selected sections of it.
+
+Use builtin VSCode formatting options to format the document (Format Document, Format Selection, Editor Formatter, etc.)
 
 ## Requirements
 
--   VS Code 1.98.0 or higher
--   Python environment with your preferred formatter installed
-
-## Installation
-
-1. Open VS Code
-2. Press `Ctrl+P` (or `Cmd+P` on macOS)
-3. Type `ext install antimach.python-import-sorter`
-4. Press Enter
+To run this extension, you must have *Python 3.11* or higher and the *[Python Enviroments](https://github.com/AntiMach/python-import-sorter)* extension installed.
 
 ## Extension Settings
 
-This extension contributes the following settings:
+This extension provides the following configurations:
 
--   `python-import-sorter.formatter`: Specify the formatter command to run (default: `ruff format`)
--   `python-import-sorter.groups`: Package names to group imports by (array of strings)
-
-## Configuration Examples
-
-In your `settings.json`:
-
-```json
-{
-    "python-import-sorter.formatter": "ruff format",
-    "python-import-sorter.groups": ["stdlib", "django", "third-party", "first-party", "local"]
-}
-```
-
-## Usage
-
-The extension activates automatically for Python files. Your imports will be sorted whenever you save a Python file.
+* `python-import-sorter.groups`: Specifies the imports to group by.
+* `python-import-sorter.format`: Specifies the formatter command to run after sorting imports.
+* `python-import-sorter.config`: Specifies the path to a config file.
 
 ## Known Issues
 
-Please report any issues on the [GitHub repository](https://github.com/AntiMach/python-import-sorter/issues).
+Unknown.
 
 ## Release Notes
 
-### 0.0.1
+### [1.0.0]
 
--   Initial release
--   Basic import sorting functionality
--   Custom formatter support
--   Configurable import grouping
+- Initial release
+- Automatic import sorting for Python files
+- Custom formatter command configuration through `python-import-sorter.format` (not set by default, eg.: `ruff format -`)
+- Configurable import grouping through `python-import-sorter.groups` setting
+- Configurable arguments through the `python-import-sorter.config` setting

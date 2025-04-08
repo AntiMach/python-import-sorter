@@ -22,7 +22,7 @@
             "title": "Common",
             "properties": {
                 "python-import-sorter.format": {
-                    "description": "Specify the formatter command to run in python.",
+                    "description": "Formatter command to run in python.",
                     "type": "string",
                     "default": null
                 },
@@ -33,6 +33,11 @@
                         "type": "string"
                     },
                     "default": []
+                },
+                "python-import-sorter.config": {
+                    "description": "Path to a config file.",
+                    "type": "string",
+                    "default": null
                 }
             }
         }

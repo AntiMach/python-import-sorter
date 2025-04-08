@@ -1,13 +1,14 @@
+import os
+import sys
 import shlex
 import subprocess
-import sys
 
 from import_sorter.args import Args
 from import_sorter.sorting import ImportSorter
 
 
 def run_program(source: str, args: list[str]):
-    result = subprocess.run(args, input=source, text=True, capture_output=True)
+    result = subprocess.run(args, env=os.environ, input=source, text=True, capture_output=True)
 
     if result.returncode:
         raise RuntimeError(result.stderr)
