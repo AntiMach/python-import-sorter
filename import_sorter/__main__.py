@@ -25,7 +25,7 @@ def main():
     source = ImportSorter(source, args.groups).sort()
 
     if args.format:
-        source = run_program(source, [sys.executable, "-m", *shlex.split(args.format)])
+        source = run_program(source, shlex.split(args.format))
 
     with args.open_file("w") as fp:
         fp.write(source)

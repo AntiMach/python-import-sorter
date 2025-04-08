@@ -22,6 +22,7 @@ import-sorter = "import_sorter.__main__:main"
 "Homepage" = "https://github.com/AntiMach/python-import-sorter"
 
 [tool.import-sorter]
+format = "python -m ruff format -"
 groups = ["import_sorter"]
 
 [tool.ruff]
