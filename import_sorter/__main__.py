@@ -4,7 +4,7 @@ import shlex
 import subprocess
 
 from import_sorter.args import Args
-from import_sorter.sorting import ImportSorter
+from import_sorter.ast.sort import ImportSorter
 
 
 def run_program(source: str, args: list[str]):
