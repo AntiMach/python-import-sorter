@@ -1,4 +1,5 @@
 import sys
+import glob
 import tomllib
 from pathlib import Path
 from dataclasses import dataclass
@@ -12,6 +13,7 @@ class Args:
     groups: list[str]
     format: str | None
     config: str | None
+    recursive: bool = False
 
     def __post_init__(self):
         if self.config:
@@ -53,6 +55,9 @@ class Args:
         parser.add_argument("-g", "--groups", action="extend", nargs="+", default=[])
         parser.add_argument("-f", "--format", default=None)
         parser.add_argument("-c", "--config", default=None)
+        parser.add_argument(
+            "-r", "--recursive", action="store_true", help="Format all Python files in directory recursively"
+        )
 
         return cls(**parser.parse_args(args).__dict__)
 
@@ -60,7 +65,22 @@ class Args:
         if self.file != "-":
             return open(self.file, mode, encoding="utf-8")
 
-        if mode == "r":
-            return sys.stdin
+        return sys.stdin if mode == "r" else sys.stdout
 
-        return sys.stdout
+    def get_python_files(self) -> list[str]:
+        if self.file == "-":
+            return ["-"]
+
+        file_path = Path(self.file)
+
+        if file_path.is_file():
+            return [str(file_path)]
+        elif file_path.is_dir():
+            if self.recursive:
+                return [str(p) for p in file_path.rglob("*.py")]
+            else:
+                return [str(p) for p in file_path.glob("*.py")]
+        else:
+            matches = glob.glob(self.file, recursive=self.recursive)
+            python_files = [f for f in matches if f.endswith(".py")]
+            return python_files or [self.file]

@@ -18,6 +18,13 @@
     ],
     "main": "./out/extension.js",
     "contributes": {
+        "commands": [
+            {
+                "command": "python-import-sorter.formatAllDocuments",
+                "title": "Format All Python Documents",
+                "category": "Python Import Sorter"
+            }
+        ],
         "configuration": {
             "title": "Common",
             "properties": {
