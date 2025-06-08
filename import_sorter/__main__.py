@@ -21,17 +21,31 @@ def run_program(source: str, args: list[str]):
 
 def main():
     args = Args.parse()
+    python_files = args.get_python_files()
 
-    with args.open_file("r") as fp:
-        source = fp.read()
+    if len(python_files) == 1 and python_files[0] == "-":
+        with args.open_file("r") as fp:
+            source = fp.read()
 
-    source = ImportSorter(source, args.groups).sort()
+        source = ImportSorter(source, args.groups).sort()
 
-    if args.format:
-        source = run_program(source, shlex.split(args.format))
+        if args.format:
+            source = run_program(source, shlex.split(args.format))
 
-    with args.open_file("w") as fp:
-        fp.write(source)
+        with args.open_file("w") as fp:
+            fp.write(source)
+    else:
+        for file_path in python_files:
+            with open(file_path, "r", encoding="utf-8") as fp:
+                source = fp.read()
+
+            source = ImportSorter(source, args.groups).sort()
+
+            if args.format:
+                source = run_program(source, shlex.split(args.format))
+
+            with open(file_path, "w", encoding="utf-8") as fp:
+                fp.write(source)
 
 
 if __name__ == "__main__":
