@@ -25,5 +25,5 @@ export function settings(): Settings {
 }
 
 export function extKey(name: string): string {
-    return `${EXTENSION_NAME}.name`
+    return `${EXTENSION_NAME}.${name}`
 }

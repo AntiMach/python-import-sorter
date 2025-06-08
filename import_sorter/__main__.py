@@ -1,7 +1,8 @@
 import os
 import sys
-import shlex
 import subprocess
+from pathlib import Path
+from typing import Literal
 
 from import_sorter.args import Args
 from import_sorter.sorting import ImportSorter
@@ -19,33 +20,27 @@ def run_program(source: str, args: list[str]):
     return result.stdout
 
 
+def open_file(file: Path | Literal["-"], mode: Literal["r", "w"]):
+    if file == "-":
+        return sys.stdin if mode == "r" else sys.stdout
+    
+    return file.open(mode, encoding="utf-8")
+
+
 def main():
     args = Args.parse()
-    python_files = args.get_python_files()
 
-    if len(python_files) == 1 and python_files[0] == "-":
-        with args.open_file("r") as fp:
+    for file in args.list_files():
+        with open_file(file, "r") as fp:
             source = fp.read()
 
         source = ImportSorter(source, args.groups).sort()
 
         if args.format:
-            source = run_program(source, shlex.split(args.format))
+            source = run_program(source, args.format.split())
 
-        with args.open_file("w") as fp:
+        with open_file(file, "w") as fp:
             fp.write(source)
-    else:
-        for file_path in python_files:
-            with open(file_path, "r", encoding="utf-8") as fp:
-                source = fp.read()
-
-            source = ImportSorter(source, args.groups).sort()
-
-            if args.format:
-                source = run_program(source, shlex.split(args.format))
-
-            with open(file_path, "w", encoding="utf-8") as fp:
-                fp.write(source)
 
 
 if __name__ == "__main__":

@@ -1,7 +1,9 @@
 import * as vscode from "vscode";
 import * as vsapi from './common/vsapi';
 import * as config from "./common/config";
-import * as python from "./common/pythonEnvsApi";
+
+import { spawn } from "child_process";
+import { PythonExtension } from '@vscode/python-extension';
 
 
 export class Formatter {
@@ -28,8 +30,15 @@ export class Formatter {
         ))
     }
 
+    async currentPythonExecutable() {
+        const pythonApi = await PythonExtension.api();
+        const environments = pythonApi.environments;
+        const environment = await environments.resolveEnvironment(environments.getActiveEnvironmentPath());
+        return environment?.executable.uri?.fsPath;
+    }
+
     async formatDocument(textEditor: vscode.TextEditor, textEdit: vscode.TextEditorEdit) {
-        const edits = await this.format(textEditor.document, undefined);
+        const edits = await this.format(textEditor.document);
 
         for (const edit of edits) {
             textEdit.replace(edit.range, edit.newText);
@@ -37,19 +46,15 @@ export class Formatter {
     }
 
     async formatAllDocuments() {
-        const projectRoot = vsapi.getProjectRoot();
-        
+        const projectRoot = vsapi.getProjectRoot().fsPath;
+
         return vscode.window.withProgress({
             location: vscode.ProgressLocation.Notification,
             title: "Formatting Python Files",
             cancellable: true
         }, async (progress, token) => {
             try {
-                const pythonFiles = await vscode.workspace.findFiles(
-                    "**/*.py",
-                    "**/node_modules/**",
-                    undefined
-                );
+                const pythonFiles = await vscode.workspace.findFiles(`${projectRoot}/**/*.py`, `${projectRoot}/**/.venv/*.py`);
 
                 if (pythonFiles.length === 0) {
                     vscode.window.showInformationMessage("No Python files found in workspace");
@@ -58,55 +63,9 @@ export class Formatter {
 
                 progress.report({ message: `Found ${pythonFiles.length} Python files` });
 
-                const api = await python.getEnvExtApi();
-                const env = await api.getEnvironment(projectRoot);
+                await this.runScript({ files: `${projectRoot}/**/*.py`, excludes: `${projectRoot}/**/.venv/*.py` });
 
-                if (!env) {
-                    throw new Error("No active environment found");
-                }
-
-                let args = [config.SCRIPT_PATH, "--recursive", projectRoot.fsPath];
-                const { format, groups, configPath } = config.settings();
-
-                if (format) {
-                    args.push("-f", format);
-                }
-
-                if (groups.length > 0) {
-                    args.push("-g", ...groups);
-                }
-
-                if (configPath) {
-                    args.push("-c", configPath);
-                }
-
-                progress.report({ message: "Processing files..." });
-
-                const proc = await api.runInBackground(env, { args, cwd: projectRoot.fsPath });
-
-                proc.stdin.end();
-
-                return new Promise<void>((resolve, reject) => {
-                    proc.onExit((code) => {
-                        if (token.isCancellationRequested) {
-                            proc.kill();
-                            return reject(new Error("Operation cancelled"));
-                        }
-
-                        if (code === 0) {
-                            const output = proc.stdout.read().toString();
-                            this.logger.appendLine(output);
-                            vscode.window.showInformationMessage(
-                                `Python import sorting completed for workspace`
-                            );
-                            return resolve();
-                        } else {
-                            const errorOutput = proc.stderr.read().toString();
-                            this.logger.appendLine(`Error output: ${errorOutput}`);
-                            reject(new Error(errorOutput || "Unknown error occurred"));
-                        }
-                    });
-                });
+                progress.report({ message: `Done formatting` });
 
             } catch (error) {
                 this.logger.appendLine(this.errorToString(error));
@@ -118,7 +77,7 @@ export class Formatter {
         });
     }
 
-    async format(document: vscode.TextDocument, range: vscode.Range | undefined): Promise<vscode.TextEdit[]> {
+    async format(document: vscode.TextDocument, range?: vscode.Range): Promise<vscode.TextEdit[]> {
         if (range === undefined || range.isEmpty) {
             range = new vscode.Range(
                 document.lineAt(0).range.start,
@@ -127,7 +86,7 @@ export class Formatter {
         }
 
         try {
-            const result = await this.runScript(document.getText(range));
+            const result = await this.runScript({ content: document.getText(range) });
             return [vscode.TextEdit.replace(range, result)];
         } catch (error) {
             this.logger.appendLine(this.errorToString(error));
@@ -135,17 +94,27 @@ export class Formatter {
         }
     }
 
-    async runScript(content: string): Promise<string> {
+    async runScript(options: { files?: string, excludes?: string, content?: string }): Promise<string> {
         const projectRoot = vsapi.getProjectRoot();
 
-        const api = await python.getEnvExtApi();
-        const env = await api.getEnvironment(projectRoot);
+        const pythonPath = await this.currentPythonExecutable();
 
-        if (!env) {
+        if (pythonPath === undefined) {
             throw new Error("No active environment found");
         }
 
-        let args = [config.SCRIPT_PATH, "-"];
+        let args = [config.SCRIPT_PATH];
+
+        if (options.files) {
+            args.push(options.files)
+        } else {
+            args.push("-")
+        }
+
+        if (options.excludes) {
+            args.push("-x", options.excludes)
+        }
+
         const { format, groups, configPath } = config.settings();
 
         if (format) {
@@ -160,18 +129,31 @@ export class Formatter {
             args.push("-c", configPath);
         }
 
-        const proc = await api.runInBackground(env, { args, cwd: projectRoot.fsPath });
-
-        proc.stdin.write(content);
-        proc.stdin.end();
-
         return new Promise<string>((resolve, reject) => {
-            proc.onExit((code) => {
+            const proc = spawn(pythonPath, args, { cwd: projectRoot.fsPath, });
+
+            let stdout = "";
+            let stderr = "";
+
+            proc.stdout.setEncoding('utf8');
+            proc.stderr.setEncoding('utf8');
+
+            proc.stdout.on('data', chunk => stdout += chunk);
+            proc.stderr.on('data', chunk => stderr += chunk);
+
+            proc.on('error', (err) => reject(new Error(err.message)));
+
+            proc.on("close", (code) => {
                 if (code === 0) {
-                    return resolve(proc.stdout.read().toString());
+                    resolve(stdout);
+                } else {
+                    reject(new Error(stderr.trim() || `Process exited with code ${code}`));
                 }
-                reject(new Error(proc.stderr.read().toString()));
             });
+
+            if (options.content) {
+                proc.stdin.end(options.content);
+            }
         });
     }
 

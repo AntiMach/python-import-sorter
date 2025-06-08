@@ -1,19 +1,23 @@
 import sys
-import glob
 import tomllib
 from pathlib import Path
+from typing import Self, Sequence
 from dataclasses import dataclass
 from argparse import ArgumentParser
-from typing import Self, TextIO, Literal, Sequence
 
 
 @dataclass
+class Source:
+    content: str
+
+
+@dataclass(kw_only=True)
 class Args:
-    file: str
+    files: list[str]
+    exclude: list[str]
     groups: list[str]
     format: str | None
     config: str | None
-    recursive: bool = False
 
     def __post_init__(self):
         if self.config:
@@ -50,37 +54,23 @@ class Args:
             prog = exec_file.name
 
         parser = ArgumentParser(prog)
-
-        parser.add_argument("file")
+        parser.add_argument("files", action="extend", nargs="+", default=[])
+        parser.add_argument("-x", "--exclude", action="extend", nargs="+", default=[])
         parser.add_argument("-g", "--groups", action="extend", nargs="+", default=[])
         parser.add_argument("-f", "--format", default=None)
         parser.add_argument("-c", "--config", default=None)
-        parser.add_argument(
-            "-r", "--recursive", action="store_true", help="Format all Python files in directory recursively"
-        )
 
         return cls(**parser.parse_args(args).__dict__)
+    
+    def list_files(self):
+        excludes = {match for exclude in self.exclude for match in Path().glob(exclude)}
 
-    def open_file(self, mode: Literal["r", "w"]) -> TextIO:
-        if self.file != "-":
-            return open(self.file, mode, encoding="utf-8")
+        for file in self.files:
+            if file == "-":
+                yield "-"
+                continue
 
-        return sys.stdin if mode == "r" else sys.stdout
+            for match in Path().glob(file):
+                if match not in excludes:
+                    yield match
 
-    def get_python_files(self) -> list[str]:
-        if self.file == "-":
-            return ["-"]
-
-        file_path = Path(self.file)
-
-        if file_path.is_file():
-            return [str(file_path)]
-        elif file_path.is_dir():
-            if self.recursive:
-                return [str(p) for p in file_path.rglob("*.py")]
-            else:
-                return [str(p) for p in file_path.glob("*.py")]
-        else:
-            matches = glob.glob(self.file, recursive=self.recursive)
-            python_files = [f for f in matches if f.endswith(".py")]
-            return python_files or [self.file]

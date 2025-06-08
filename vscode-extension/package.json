@@ -50,11 +50,11 @@
         }
     },
     "extensionDependencies": [
-        "ms-python.vscode-python-envs"
+        "ms-python.python"
     ],
     "scripts": {
         "vscode:prepublish": "npm run compile",
-        "compile": "python bundle.py && tsc -p ./",
+        "compile": "..\\.venv\\Scripts\\python.exe bundle.py && tsc -p ./",
         "watch": "tsc -watch -p ./",
         "pretest": "npm run compile && npm run lint",
         "lint": "eslint src",
