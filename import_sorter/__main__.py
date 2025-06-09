@@ -5,7 +5,7 @@ from typing import Literal, Iterator
 from import_sorter.args import Args
 from import_sorter.sorting import sort_imports
 from import_sorter.external import run_program
-from import_sorter.states import State, DoneState, FileState, FoundState, ErrorState, SyntaxErrorState
+from import_sorter.states import State, DoneState, FileState, ErrorState, FoundState, SyntaxErrorState
 
 
 def open_file(file: str, mode: Literal["r", "w"]):
