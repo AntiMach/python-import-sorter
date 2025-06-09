@@ -1,24 +1,11 @@
-import os
 import sys
-import subprocess
 import traceback
-from typing import Literal
+from typing import Literal, Iterator
 
 from import_sorter.args import Args
-from import_sorter.sorting import ImportSorter
-from import_sorter.states import DoneState, ErrorState, FileState, InitState
-
-
-def run_program(source: str, args: list[str]):
-    if args[0].casefold() in ("python", "python3", "python3.11"):
-        args[0] = sys.executable
-
-    result = subprocess.run(args, env=os.environ, input=source, text=True, capture_output=True, encoding="utf-8")
-
-    if result.returncode:
-        raise RuntimeError(result.stderr)
-
-    return result.stdout
+from import_sorter.sorting import sort_imports
+from import_sorter.external import run_program
+from import_sorter.states import State, DoneState, FileState, FoundState, ErrorState, SyntaxErrorState
 
 
 def open_file(file: str, mode: Literal["r", "w"]):
@@ -28,37 +15,50 @@ def open_file(file: str, mode: Literal["r", "w"]):
     return open(file, mode, encoding="utf-8")
 
 
-def main():
-    as_json = False
-
+def state_machine(args: Args) -> Iterator[State]:
     try:
-        args = Args.parse()
-        as_json = args.json
-
         files = set()
 
+        # Find files to format
         for file in args.list_files():
-            files.add(file)
-            InitState(len(files)).log(as_json)
+            if file not in files:
+                files.add(file)
+                yield FoundState(file)
 
-        for file in files:
+        # Format files
+        for i, file in enumerate(files, 1):
+            progress = i * 100 / len(files)
             with open_file(file, "r") as fp:
                 source = fp.read()
 
-            source = ImportSorter(source, args.groups).sort()
+            try:
+                source = sort_imports(source, args.groups)
+            except SyntaxError:
+                yield SyntaxErrorState(file, progress, traceback.format_exc(3))
+                continue
 
             if args.format:
-                source = run_program(source, args.format.split())
-
-            FileState(file).log(as_json)
+                source = run_program(source, args.format)
 
             with open_file(file, "w") as fp:
                 fp.write(source)
 
-        DoneState().log(as_json)
+            yield FileState(file, progress)
 
-    except Exception as exc:
-        ErrorState("\n".join(traceback.format_exception(exc))).log(as_json)
+        # Signal the processing is done
+        yield DoneState()
+
+    except Exception:
+        # Signal the processing errored out
+        yield ErrorState(traceback.format_exc())
+
+
+def main():
+    args = Args.parse()
+
+    for state in state_machine(args):
+        if message := state.message(args.as_json):
+            print(message, file=sys.stderr)
 
 
 if __name__ == "__main__":

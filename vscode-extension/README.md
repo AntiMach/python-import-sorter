@@ -27,7 +27,7 @@ This extension provides the following configurations:
 
 ## Known Issues
 
-Unknown.
+- Formats with comments around them (except after all top level imports) get completely removed.
 
 ## Release Notes
 

@@ -1,52 +1,55 @@
-import sys
 import json
 from dataclasses import asdict, dataclass
 
 
 @dataclass
-class StateLog:
+class State:
     STATE = ""
+    TEMPLATE = ""
 
-    def message(self) -> str:
-        assert self.__doc__ is not None
-        return self.__doc__.format(**asdict(self))
-
-    def json(self) -> str:
-        return json.dumps({"state": self.STATE, **asdict(self)})
-
-    def log(self, as_json: bool = False):
-        print(self.json() if as_json else self.message(), file=sys.stderr)
+    def message(self, as_json: bool) -> str:
+        if as_json:
+            return json.dumps({"state": self.STATE, **asdict(self)})
+        else:
+            return self.TEMPLATE.format(**asdict(self))
 
 
 @dataclass
-class InitState(StateLog):
-    "Formatting {count} files"
-
+class FoundState(State):
     STATE = "init"
-
-    count: int
-
-
-@dataclass
-class FileState(StateLog):
-    "Formatted {file}"
-
-    STATE = "file"
+    TEMPLATE = "Found {file}"
 
     file: str
 
 
 @dataclass
-class DoneState(StateLog):
-    "Done formatting"
+class FileState(State):
+    STATE = "file"
+    TEMPLATE = "Formatted {file} ({prog}%)"
 
-    STATE = "done"
+    file: str
+    prog: float
 
 
 @dataclass
-class ErrorState(StateLog):
-    "An unexpected error has occurred: {error}"
+class DoneState(State):
+    STATE = "done"
+    TEMPLATE = "Done formatting"
 
+
+@dataclass
+class SyntaxErrorState(State):
+    STATE = "file_error"
+    TEMPLATE = "File {file} has a syntax error ({prog}%)"
+
+    file: str
+    prog: float
+    error: str
+
+
+@dataclass
+class ErrorState(State):
     STATE = "error"
+    TEMPLATE = "An unexpected error has occurred: {error}"
 
     error: str

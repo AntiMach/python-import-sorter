@@ -58,8 +58,22 @@ export class Formatter {
         const files = filesString.split(",").map(v => v.trim()).filter(v => v !== "");
 
         try {
-            const { fileCount } = await this.runScript({ files });
-            vscode.window.showInformationMessage(`Successfully formatted ${fileCount} files!`);
+            const { fileCount, fileErrors } = await this.runScript({ files });
+            let message = [];
+
+            if (fileCount > 0) {
+                message.push(`Successfully formatted ${fileCount} files.`)
+            }
+
+            if (fileErrors > 0) {
+                message.push(`Failed to format ${fileErrors} files (check logs).`);
+            }
+
+            vscode.window.showInformationMessage(message.join("\n"), "Show Logs").then((selection) => {
+                if (selection === "Show Logs") {
+                    this.logger.show(true);
+                }
+            });
 
         } catch (error) {
             vscode.window.showErrorMessage(`Failed to format files:\n${this.errorToString(error)}`);
@@ -89,7 +103,7 @@ export class Formatter {
     async runScript(options: {
         files?: string[],
         content?: string,
-    }): Promise<{ result: string, fileCount: number }> {
+    }): Promise<{ result: string, fileCount: number, fileErrors: number }> {
         const projectRoot = vsapi.getProjectRoot();
 
         const pythonPath = await this.currentPythonExecutable();
@@ -120,7 +134,7 @@ export class Formatter {
             args.push("-c", configPath);
         }
 
-        if (exclude) {
+        if (exclude.length > 0) {
             args.push("-x", ...exclude)
         }
 
@@ -128,21 +142,25 @@ export class Formatter {
 
 
         return vscode.window.withProgress({
-            location: vscode.ProgressLocation.Window,
+            location: vscode.ProgressLocation.Notification,
             title: "Import Sorter",
-            cancellable: false,
-        }, async (progress) => {
+            cancellable: true,
+        }, async (progress, token) => {
             return new Promise((resolve, reject) => {
                 const proc = spawn(pythonPath, args, { cwd: projectRoot.fsPath });
 
                 let stdout = "";
                 let stderr = "";
-                let fileCount = 1;
+                let fileCount = 0;
+                let fileErrors = 0;
+                let prevProg = 0;
 
                 proc.stdout.setEncoding('utf8');
                 proc.stderr.setEncoding('utf8');
 
                 proc.stdout.on('data', chunk => stdout += chunk);
+
+                // Processes log data
                 proc.stderr.on('data', chunk => {
                     stderr += chunk;
                     const lines = stderr.split('\n');
@@ -158,37 +176,60 @@ export class Formatter {
                             continue;
                         }
 
+                        let message;
+                        let increment = 0;
+
                         switch (json.state) {
                             case "init":
-                                progress.report({ message: `Found ${json.count} files...` });
-                                fileCount = json.count;
+                                message = `Found ${json.file}`;
                                 break;
                             case "file":
-                                progress.report({ message: `Processing ${json.file}` });
+                                message = `Processed ${json.file}`;
+                                fileCount += 1;
+                                increment = json.prog - prevProg;
+                                prevProg = json.prog;
                                 break;
                             case "done":
-                                progress.report({ message: `Completed.` });
+                                message = `Completed.`;
+                                break;
+                            case "file_error":
+                                message = `File ${json.file} has syntax errors. ${json.error}`;
+                                fileErrors += 1;
+                                increment = json.prog - prevProg;
+                                prevProg = json.prog;
                                 break;
                             case "error":
-                                reject(new Error(json.message));
+                                message = json.message;
                                 return;
+                        }
+
+                        if (message !== undefined) {
+                            progress.report({ message, increment });
+                            this.logger.appendLine(message);
                         }
                     }
                 });
 
+                // Occurs when the process fails to run
                 proc.on("error", err => reject(new Error(err.message)));
 
+                // Occurs when the process ends
                 proc.on("close", code => {
                     if (code === 0) {
-                        resolve({ result: stdout, fileCount: fileCount });
+                        resolve({ result: stdout, fileCount, fileErrors });
                     } else {
                         reject(new Error(`Process exited with code ${code}`));
                     }
                 });
 
+                // Writes the provided contents to stdin and closes it
                 if (options.content) {
                     proc.stdin.end(options.content);
                 }
+
+                token.onCancellationRequested((e) => {
+                    proc.kill();
+                })
             });
         });
     }

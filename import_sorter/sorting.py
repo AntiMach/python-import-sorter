@@ -41,7 +41,7 @@ class ImportSorter:
         for line in self.source.splitlines(keepends=True)[last_line:]:
             new_source += line
 
-        return new_source
+        return new_source.lstrip()
 
     def _read_stmt(self, stmt: ast.stmt) -> bool | None:
         if isinstance(stmt, ast.Import):
@@ -98,3 +98,7 @@ class ImportSorter:
         return len(unparsed), len(module), unparsed, module
 
     # endregion
+
+
+def sort_imports(source: str, groups: Sequence[str]):
+    return ImportSorter(source, groups).sort()

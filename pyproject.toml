@@ -11,9 +11,9 @@ readme = "README.md"
 requires-python = ">=3.11"
 classifiers = [
     "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
+license = "MIT AND (Apache-2.0 OR BSD-2-Clause)"
 dependencies = ["pathspec>=0.12.1"]
 
 [project.scripts]
@@ -24,7 +24,7 @@ import-sorter = "import_sorter.__main__:main"
 
 [tool.import-sorter]
 format = "ruff format -"
-groups = ["import_sorter"]
+groups = "import_sorter"
 
 [tool.ruff]
 line-length = 120
