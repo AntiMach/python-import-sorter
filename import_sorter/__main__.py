@@ -1,51 +1,64 @@
-import os
 import sys
-import shlex
-import subprocess
+import traceback
+from typing import Literal, Iterator
 
 from import_sorter.args import Args
-from import_sorter.sorting import ImportSorter
+from import_sorter.sorting import sort_imports
+from import_sorter.external import run_program
+from import_sorter.states import State, DoneState, FileState, ErrorState, FoundState, SyntaxErrorState
 
 
-def run_program(source: str, args: list[str]):
-    if args[0].casefold() in ("python", "python3", "python3.11"):
-        args[0] = sys.executable
+def open_file(file: str, mode: Literal["r", "w"]):
+    if file == "-":
+        return sys.stdin if mode == "r" else sys.stdout
 
-    result = subprocess.run(args, env=os.environ, input=source, text=True, capture_output=True)
+    return open(file, mode, encoding="utf-8")
 
-    if result.returncode:
-        raise RuntimeError(result.stderr)
 
-    return result.stdout
+def state_machine(args: Args) -> Iterator[State]:
+    try:
+        files = set()
+
+        # Find files to format
+        for file in args.list_files():
+            if file not in files:
+                files.add(file)
+                yield FoundState(file)
+
+        # Format files
+        for i, file in enumerate(files, 1):
+            progress = i * 100 / len(files)
+            with open_file(file, "r") as fp:
+                source = fp.read()
+
+            try:
+                source = sort_imports(source, args.groups)
+            except SyntaxError:
+                yield SyntaxErrorState(file, progress, traceback.format_exc(3))
+                continue
+
+            if args.format:
+                source = run_program(source, args.format)
+
+            with open_file(file, "w") as fp:
+                fp.write(source)
+
+            yield FileState(file, progress)
+
+        # Signal the processing is done
+        yield DoneState()
+
+    except Exception:
+        # Signal the processing errored out
+        yield ErrorState(traceback.format_exc())
 
 
 def main():
     args = Args.parse()
-    python_files = args.get_python_files()
 
-    if len(python_files) == 1 and python_files[0] == "-":
-        with args.open_file("r") as fp:
-            source = fp.read()
-
-        source = ImportSorter(source, args.groups).sort()
-
-        if args.format:
-            source = run_program(source, shlex.split(args.format))
-
-        with args.open_file("w") as fp:
-            fp.write(source)
-    else:
-        for file_path in python_files:
-            with open(file_path, "r", encoding="utf-8") as fp:
-                source = fp.read()
-
-            source = ImportSorter(source, args.groups).sort()
-
-            if args.format:
-                source = run_program(source, shlex.split(args.format))
-
-            with open(file_path, "w", encoding="utf-8") as fp:
-                fp.write(source)
+    for state in state_machine(args):
+        if message := state.message(args.as_json):
+            print(message, file=sys.stderr)
 
 
 if __name__ == "__main__":
