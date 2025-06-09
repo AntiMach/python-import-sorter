@@ -46,35 +46,26 @@ export class Formatter {
     }
 
     async formatAllDocuments() {
-        const projectRoot = vsapi.getProjectRoot().fsPath;
-
-        return vscode.window.withProgress({
-            location: vscode.ProgressLocation.Notification,
-            title: "Formatting Python Files",
-            cancellable: true
-        }, async (progress, token) => {
-            try {
-                const pythonFiles = await vscode.workspace.findFiles(`${projectRoot}/**/*.py`, `${projectRoot}/**/.venv/*.py`);
-
-                if (pythonFiles.length === 0) {
-                    vscode.window.showInformationMessage("No Python files found in workspace");
-                    return;
-                }
-
-                progress.report({ message: `Found ${pythonFiles.length} Python files` });
-
-                await this.runScript({ files: `${projectRoot}/**/*.py`, excludes: `${projectRoot}/**/.venv/*.py` });
-
-                progress.report({ message: `Done formatting` });
-
-            } catch (error) {
-                this.logger.appendLine(this.errorToString(error));
-                vscode.window.showErrorMessage(
-                    `Failed to format Python files: ${this.errorToString(error)}`
-                );
-                throw error;
-            }
+        const filesString = await vscode.window.showInputBox({
+            prompt: "Enter a list of files to format (folders and globs allowed) separated by commas",
+            placeHolder: "e.g., src/**/*.py main.py"
         });
+
+        if (filesString === undefined) {
+            return;
+        }
+
+        const files = filesString.split(",").map(v => v.trim()).filter(v => v !== "");
+
+        try {
+            const { fileCount } = await this.runScript({ files });
+            vscode.window.showInformationMessage(`Successfully formatted ${fileCount} files!`);
+
+        } catch (error) {
+            vscode.window.showErrorMessage(`Failed to format files:\n${this.errorToString(error)}`);
+            this.logger.appendLine(this.errorToString(error));
+            throw error;
+        }
     }
 
     async format(document: vscode.TextDocument, range?: vscode.Range): Promise<vscode.TextEdit[]> {
@@ -86,15 +77,19 @@ export class Formatter {
         }
 
         try {
-            const result = await this.runScript({ content: document.getText(range) });
+            const { result } = (await this.runScript({ content: document.getText(range) }));
             return [vscode.TextEdit.replace(range, result)];
         } catch (error) {
+            vscode.window.showErrorMessage(`Failed to format file:\n${this.errorToString(error)}`);
             this.logger.appendLine(this.errorToString(error));
             return [];
         }
     }
 
-    async runScript(options: { files?: string, excludes?: string, content?: string }): Promise<string> {
+    async runScript(options: {
+        files?: string[],
+        content?: string,
+    }): Promise<{ result: string, fileCount: number }> {
         const projectRoot = vsapi.getProjectRoot();
 
         const pythonPath = await this.currentPythonExecutable();
@@ -106,16 +101,12 @@ export class Formatter {
         let args = [config.SCRIPT_PATH];
 
         if (options.files) {
-            args.push(options.files)
+            args.push(...options.files)
         } else {
             args.push("-")
         }
 
-        if (options.excludes) {
-            args.push("-x", options.excludes)
-        }
-
-        const { format, groups, configPath } = config.settings();
+        const { format, groups, configPath, exclude } = config.settings();
 
         if (format) {
             args.push("-f", format);
@@ -129,31 +120,76 @@ export class Formatter {
             args.push("-c", configPath);
         }
 
-        return new Promise<string>((resolve, reject) => {
-            const proc = spawn(pythonPath, args, { cwd: projectRoot.fsPath, });
+        if (exclude) {
+            args.push("-x", ...exclude)
+        }
 
-            let stdout = "";
-            let stderr = "";
+        args.push("-j")
 
-            proc.stdout.setEncoding('utf8');
-            proc.stderr.setEncoding('utf8');
 
-            proc.stdout.on('data', chunk => stdout += chunk);
-            proc.stderr.on('data', chunk => stderr += chunk);
+        return vscode.window.withProgress({
+            location: vscode.ProgressLocation.Window,
+            title: "Import Sorter",
+            cancellable: false,
+        }, async (progress) => {
+            return new Promise((resolve, reject) => {
+                const proc = spawn(pythonPath, args, { cwd: projectRoot.fsPath });
 
-            proc.on('error', (err) => reject(new Error(err.message)));
+                let stdout = "";
+                let stderr = "";
+                let fileCount = 1;
 
-            proc.on("close", (code) => {
-                if (code === 0) {
-                    resolve(stdout);
-                } else {
-                    reject(new Error(stderr.trim() || `Process exited with code ${code}`));
+                proc.stdout.setEncoding('utf8');
+                proc.stderr.setEncoding('utf8');
+
+                proc.stdout.on('data', chunk => stdout += chunk);
+                proc.stderr.on('data', chunk => {
+                    stderr += chunk;
+                    const lines = stderr.split('\n');
+                    stderr = lines.pop()!;
+
+                    for (const line of lines) {
+                        let json;
+
+                        try {
+                            json = JSON.parse(line.trim());
+                        } catch (err) {
+                            this.logger.appendLine(`Non-JSON stderr: ${line}`);
+                            continue;
+                        }
+
+                        switch (json.state) {
+                            case "init":
+                                progress.report({ message: `Found ${json.count} files...` });
+                                fileCount = json.count;
+                                break;
+                            case "file":
+                                progress.report({ message: `Processing ${json.file}` });
+                                break;
+                            case "done":
+                                progress.report({ message: `Completed.` });
+                                break;
+                            case "error":
+                                reject(new Error(json.message));
+                                return;
+                        }
+                    }
+                });
+
+                proc.on("error", err => reject(new Error(err.message)));
+
+                proc.on("close", code => {
+                    if (code === 0) {
+                        resolve({ result: stdout, fileCount: fileCount });
+                    } else {
+                        reject(new Error(`Process exited with code ${code}`));
+                    }
+                });
+
+                if (options.content) {
+                    proc.stdin.end(options.content);
                 }
             });
-
-            if (options.content) {
-                proc.stdin.end(options.content);
-            }
         });
     }
 

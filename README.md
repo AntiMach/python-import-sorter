@@ -34,7 +34,7 @@ pip install git+https://github.com/AntiMach/python-import-sorter
 Run the tool via Python:
 
 ```sh
-python -m import_sorter.main <file>
+python -m import_sorter <file>
 ```
 
 Or, if installed via `pip`, use the CLI directly:

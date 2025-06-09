@@ -14,13 +14,16 @@ export interface Settings {
     format: string | undefined;
     groups: string[];
     configPath: string | undefined;
+    exclude: string[];
 }
 
 export function settings(): Settings {
+    const config = vscode.workspace.getConfiguration(EXTENSION_NAME)
     return {
-        format: vscode.workspace.getConfiguration(EXTENSION_NAME).get("format") ?? undefined,
-        groups: vscode.workspace.getConfiguration(EXTENSION_NAME).get("groups") ?? [],
-        configPath: vscode.workspace.getConfiguration(EXTENSION_NAME).get("config") ?? undefined,
+        format: config.get("format") ?? undefined,
+        groups: config.get("groups") ?? [],
+        configPath: config.get("config") ?? undefined,
+        exclude: config.get("exclude") ?? [],
     };
 }
 

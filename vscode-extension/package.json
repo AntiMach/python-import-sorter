@@ -3,7 +3,7 @@
     "publisher": "AntiMach",
     "displayName": "Python Import Sorter",
     "description": "Automatically sort python imports",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "repository": {
         "url": "https://github.com/AntiMach/python-import-sorter"
     },
@@ -25,29 +25,46 @@
                 "category": "Python Import Sorter"
             }
         ],
-        "configuration": {
-            "title": "Common",
-            "properties": {
-                "python-import-sorter.format": {
-                    "description": "Formatter command to run in python.",
-                    "type": "string",
-                    "default": null
-                },
-                "python-import-sorter.groups": {
-                    "description": "Package names to group by.",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
+        "configuration": [
+            {
+                "title": "General",
+                "properties": {
+                    "python-import-sorter.format": {
+                        "description": "Formatter command to run in python.",
+                        "type": "string",
+                        "default": null
                     },
-                    "default": []
-                },
-                "python-import-sorter.config": {
-                    "description": "Path to a config file.",
-                    "type": "string",
-                    "default": null
+                    "python-import-sorter.groups": {
+                        "description": "Package names to group by.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "default": []
+                    },
+                    "python-import-sorter.config": {
+                        "description": "Path to a config file.",
+                        "type": "string",
+                        "default": null
+                    }
+                }
+            },
+            {
+                "title": "Multi Formatter",
+                "properties": {
+                    "python-import-sorter.exclude": {
+                        "description": "Specify your own workspace relative exclusions (folders and glob patterns allowed)",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "default": [
+                            ".venv"
+                        ]
+                    }
                 }
             }
-        }
+        ]
     },
     "extensionDependencies": [
         "ms-python.python"
@@ -71,5 +88,8 @@
         "@vscode/vsce": "^3.3.2",
         "eslint": "^9.23.0",
         "typescript": "^5.8.2"
+    },
+    "dependencies": {
+        "@vscode/python-extension": "^1.0.5"
     }
 }

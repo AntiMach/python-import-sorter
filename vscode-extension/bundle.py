@@ -19,6 +19,7 @@ def main():
             "--no-deps",
             "--upgrade",
             "..",
+            "pathspec",
         ],
     ).wait()
 

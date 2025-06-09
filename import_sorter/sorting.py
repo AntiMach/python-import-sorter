@@ -27,21 +27,16 @@ class ImportSorter:
 
         new_source = ""
 
-        try:
-            *first_groups, last_group = [group for group in self.groups.values() if group]
-        except ValueError:
-            # No imports
-            return self.source
+        for group in self.groups.values():
+            if not group:
+                continue
 
-        for group in first_groups:
             for import_stmt in self._sort_imports(group.values()):
-                new_source += ast.unparse(import_stmt)
                 new_source += "\n"
+                new_source += ast.unparse(import_stmt)
             new_source += "\n"
 
-        for import_stmt in self._sort_imports(last_group.values()):
-            new_source += ast.unparse(import_stmt)
-            new_source += "\n"
+        new_source = new_source.strip() + "\n"
 
         for line in self.source.splitlines(keepends=True)[last_line:]:
             new_source += line
