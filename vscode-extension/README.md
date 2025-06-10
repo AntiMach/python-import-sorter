@@ -25,11 +25,23 @@ This extension provides the following configurations:
 * `python-import-sorter.config`: Specifies the path to a config file.
 * `python-import-sorter.exclude`: Specifies the files/directories/globs to ignore when formatting multiple files.
 
+## Configuration Priority
+
+Configuration can be provided in several ways. The priority is as follows (highest to lowest):
+
+1. Arguments from the file specified with `python-import-sorter.config`
+2. `import-sorter.toml` at the current project's root.
+3. `[tool.import-sorter]` section of `pyproject.toml` at the project's root.
+
 ## Known Issues
 
 - Formats with comments around them (except after all top level imports) get completely removed.
 
 ## Release Notes
+
+### [1.1.1]
+- Fixed the file being completely emptied after failing to format
+- Removed the notification from a single file format
 
 ### [1.1.0]
 - Added a way to format every python file in a workspace

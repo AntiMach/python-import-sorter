@@ -1,6 +1,6 @@
 import * as path from "path";
 import * as vscode from "vscode";
-import * as pkg from "../../package.json";
+import * as pkg from "../package.json";
 
 export const EXTENSION_NAME = pkg.name;
 export const EXTENSION_DISPLAY_NAME = pkg.displayName;
@@ -18,7 +18,7 @@ export interface Settings {
 }
 
 export function settings(): Settings {
-    const config = vscode.workspace.getConfiguration(EXTENSION_NAME)
+    const config = vscode.workspace.getConfiguration(EXTENSION_NAME);
     return {
         format: config.get("format") ?? undefined,
         groups: config.get("groups") ?? [],
@@ -28,5 +28,5 @@ export function settings(): Settings {
 }
 
 export function extKey(name: string): string {
-    return `${EXTENSION_NAME}.${name}`
+    return `${EXTENSION_NAME}.${name}`;
 }

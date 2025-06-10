@@ -5,7 +5,7 @@ from typing import Literal, Iterator
 from import_sorter.args import Args
 from import_sorter.sorting import sort_imports
 from import_sorter.external import run_program
-from import_sorter.states import State, DoneState, FileState, ErrorState, FoundState, SyntaxErrorState
+from import_sorter.states import State, DoneState, FindState, ErrorState, FileErrorState, FileFormatState
 
 
 def open_file(file: str, mode: Literal["r", "w"]):
@@ -23,27 +23,32 @@ def state_machine(args: Args) -> Iterator[State]:
         for file in args.list_files():
             if file not in files:
                 files.add(file)
-                yield FoundState(file)
+                yield FindState(file)
 
         # Format files
         for i, file in enumerate(files, 1):
             progress = i * 100 / len(files)
+
             with open_file(file, "r") as fp:
                 source = fp.read()
 
             try:
                 source = sort_imports(source, args.groups)
             except SyntaxError:
-                yield SyntaxErrorState(file, progress, traceback.format_exc(3))
+                yield FileErrorState(file, traceback.format_exc(3), progress)
                 continue
 
             if args.format:
-                source = run_program(source, args.format)
+                try:
+                    source = run_program(source, args.format)
+                except Exception:
+                    yield FileErrorState(file, traceback.format_exc(3), progress)
+                    continue
 
             with open_file(file, "w") as fp:
                 fp.write(source)
 
-            yield FileState(file, progress)
+            yield FileFormatState(file, progress)
 
         # Signal the processing is done
         yield DoneState()
@@ -57,7 +62,7 @@ def main():
     args = Args.parse()
 
     for state in state_machine(args):
-        if message := state.message(args.as_json):
+        if not args.quiet and (message := state.message(args.as_json)):
             print(message, file=sys.stderr)
 
 

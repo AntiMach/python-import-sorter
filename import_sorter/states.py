@@ -15,36 +15,36 @@ class State:
 
 
 @dataclass
-class FoundState(State):
-    STATE = "init"
+class FindState(State):
+    STATE = "find"
     TEMPLATE = "Found {file}"
 
     file: str
 
 
 @dataclass
-class FileState(State):
-    STATE = "file"
-    TEMPLATE = "Formatted {file} ({prog}%)"
+class FileFormatState(State):
+    STATE = "file_format"
+    TEMPLATE = "Formatted {file} ({progress}%)"
 
     file: str
-    prog: float
+    progress: float
+
+
+@dataclass
+class FileErrorState(State):
+    STATE = "file_error"
+    TEMPLATE = "File {file} has a syntax error ({progress}%)"
+
+    file: str
+    error: str
+    progress: float
 
 
 @dataclass
 class DoneState(State):
     STATE = "done"
     TEMPLATE = "Done formatting"
-
-
-@dataclass
-class SyntaxErrorState(State):
-    STATE = "file_error"
-    TEMPLATE = "File {file} has a syntax error ({prog}%)"
-
-    file: str
-    prog: float
-    error: str
 
 
 @dataclass
