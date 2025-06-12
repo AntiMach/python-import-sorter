@@ -3,7 +3,7 @@
     "publisher": "AntiMach",
     "displayName": "Python Import Sorter",
     "description": "Automatically sort python imports",
-    "version": "1.1.1",
+    "version": "1.1.2",
     "repository": {
         "url": "https://github.com/AntiMach/python-import-sorter"
     },
