@@ -39,6 +39,12 @@ Configuration can be provided in several ways. The priority is as follows (highe
 
 ## Release Notes
 
+### [1.1.3]
+- Fixed empty files causing the formatter to hang
+
+### [1.1.2]
+- Updated the bundled version of import-sorter
+
 ### [1.1.1]
 - Fixed the file being completely emptied after failing to format
 - Removed the notification from a single file format

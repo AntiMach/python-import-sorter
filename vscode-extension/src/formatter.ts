@@ -162,7 +162,7 @@ export class Formatter {
             });
 
             // Writes the provided contents to stdin and closes it
-            if (content) process.stdin.end(content);
+            if (content !== undefined) process.stdin.end(content);
             if (token) token.onCancellationRequested(() => process.kill());
         });
     }
